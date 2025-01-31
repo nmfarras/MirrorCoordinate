@@ -36,30 +36,31 @@ def decimal_to_dms(lat, lon):
     return f"COORD:{lat_dms}:{lon_dms}"
 
 def mirror_coordinates(coords, ref_lat, ref_lon, angle=0):
-    """Mirror coordinates about a vertical (North-South) axis passing through ref_lat, ref_lon."""
+    """Mirror a coordinate (lat, lon) about a rotated line through (ref_lat, ref_lon)."""
+    
     mirrored = []
+    # Convert angle to radians
     angle_rad = math.radians(angle)
-
+    
     for coord in coords:
         lat, lon = dms_to_decimal(coord)
         
-        # Compute relative position
-        dx = lon - ref_lon
-        dy = lat - ref_lat
+        # Translate to origin
+        lat -= ref_lat
+        lon -= ref_lon
         
-        # Rotate to align with mirror axis
-        rotated_x = dx * math.cos(angle_rad) + dy * math.sin(angle_rad)
-        rotated_y = -dx * math.sin(angle_rad) + dy * math.cos(angle_rad)
+        # Rotate coordinates to align the mirror line with the y-axis
+        lat_rot = lat * math.cos(angle_rad) + lon * math.sin(angle_rad)
+        lon_rot = -lat * math.sin(angle_rad) + lon * math.cos(angle_rad)
         
-        # Reflect along Y-axis
-        mirrored_x = -rotated_x
-        mirrored_y = rotated_y
+        # Mirror about the y-axis
+        lon_mirrored = -lon_rot
         
-        # Rotate back to original frame
-        new_lon = ref_lon + (mirrored_x * math.cos(angle_rad) - mirrored_y * math.sin(angle_rad))
-        new_lat = ref_lat + (mirrored_x * math.sin(angle_rad) + mirrored_y * math.cos(angle_rad))
-
-        mirrored.append((new_lat, new_lon))
+        # Rotate back and translate to original position
+        lat_mirrored = lat_rot * math.cos(-angle_rad) + lon_mirrored * math.sin(-angle_rad) + ref_lat
+        lon_mirrored = -lat_rot * math.sin(-angle_rad) + lon_mirrored * math.cos(-angle_rad) + ref_lon
+        
+        mirrored.append((lat_mirrored, lon_mirrored))
 
     return mirrored
 
@@ -147,13 +148,13 @@ coordinates = [
 ]
 reference_coordinate = "COORD:S008.45.00.000:E115.10.00.000"
 final_offset_coordinate = "COORD:S008.44.50.000:E115.10.10.000"
-rotation_angle = 197  # Mirroring along North-South axis
+mirror_angle = 342  # Mirroring between South-West axis
 
 # Convert original coordinates
 original_decimal = [dms_to_decimal(coord) for coord in coordinates]
 
 # Mirror coordinates
-mirrored_decimal = mirror_coordinates(coordinates, *dms_to_decimal(reference_coordinate), rotation_angle)
+mirrored_decimal = mirror_coordinates(coordinates, *dms_to_decimal(reference_coordinate), mirror_angle)
 
 # Apply offset
 mirrored_offset_decimal = apply_offset(mirrored_decimal, reference_coordinate, final_offset_coordinate)
